@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password & 2FA Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #10141b;
+    --surface: #171d27;
+    --surface-2: #1e2530;
+    --line: #2a3242;
+    --text: #e7eaf0;
+    --muted: #838ea0;
+    --accent: #d4a54a;
+    --accent-dim: #8a6f38;
+    --accent-glow: rgba(212,165,74,0.25);
+    --danger: #d9705f;
+    --ok: #6fbf8b;
+    --radius: 14px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(212,165,74,0.07), transparent 60%),
+      radial-gradient(900px 500px at 100% 110%, rgba(212,165,74,0.05), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    min-height:100%;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 48px 20px 80px;
+  }
+  .app{
+    width:100%;
+    max-width: 480px;
+  }
+  header.hero{
+    margin-bottom: 28px;
+  }
+  .eyebrow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  h1{
+    font-size: 28px;
+    line-height:1.15;
+    margin: 0 0 6px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  header.hero p{
+    margin:0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height:1.5;
+  }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 22px;
+    position:relative;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding: 10px 14px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.04em;
+    color: var(--muted);
+    background:transparent;
+    border:none;
+    border-radius: 999px;
+    cursor:pointer;
+    transition: color .2s ease;
+    z-index:1;
+  }
+  .tab.active{ color:#151a22; font-weight:600; }
+  .tab-indicator{
+    position:absolute;
+    top:4px; left:4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: var(--accent);
+    border-radius: 999px;
+    transition: transform .28s cubic-bezier(.65,0,.35,1);
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+  .tabs[data-active="2fa"] .tab-indicator{
+    transform: translateX(100%);
+  }
+
+  .panel{
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    display:none;
+  }
+  .panel.active{ display:block; animation: fade .25s ease; }
+  @keyframes fade{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  label{
+    display:block;
+    font-size: 11.5px;
+    font-family:'JetBrains Mono', monospace;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field{ margin-bottom: 18px; }
+
+  input[type="text"], textarea{
+    width:100%;
+    background: var(--surface-2);
+    border:1px solid var(--line);
+    color: var(--text);
+    font-family:'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    outline:none;
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  input[type="text"]:focus, textarea:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  textarea{
+    resize:vertical;
+    min-height: 76px;
+    line-height:1.5;
+  }
+
+  .row{ display:flex; gap:12px; }
+  .row .field{ flex:1; }
+
+  input[type="range"]{
+    width:100%;
+    accent-color: var(--accent);
+    height: 4px;
+  }
+  .len-value{
+    font-family:'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight:600;
+  }
+
+  .toggles{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .toggle{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background: var(--surface-2);
+    border:1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor:pointer;
+    font-size: 13px;
+    color: var(--text);
+    user-select:none;
+    transition: border-color .15s ease;
+  }
+  .toggle.checked{ border-color: var(--accent-dim); }
+  .toggle input{ display:none; }
+  .check-box{
+    width:16px; height:16px;
+    border-radius:5px;
+    border:1.5px solid var(--muted);
+    flex-shrink:0;
+    position:relative;
+    transition: all .15s ease;
+  }
+  .toggle.checked .check-box{
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .toggle.checked .check-box::after{
+    content:"";
+    position:absolute;
+    left:4px; top:1px;
+    width:4px; height:8px;
+    border:solid #151a22;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  button.primary{
+    width:100%;
+    background: var(--accent);
+    color:#151a22;
+    border:none;
+    padding: 14px;
+    border-radius: 10px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: 14.5px;
+    letter-spacing:.01em;
+    cursor:pointer;
+    transition: filter .15s ease, transform .05s ease;
+  }
+  button.primary:hover{ filter: brightness(1.08); }
+  button.primary:active{ transform: scale(.99); }
+  button.primary:focus-visible{ outline: 2px solid var(--text); outline-offset:2px; }
+
+  .output{
+    margin-top: 18px;
+    background: var(--surface-2);
+    border:1px dashed var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    cursor:pointer;
+    position:relative;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .output:hover{ border-color: var(--accent-dim); }
+  .output-text{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 15px;
+    word-break: break-all;
+    color: var(--text);
+  }
+  .output-text.placeholder{ color: var(--muted); }
+  .copy-hint{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing:.05em;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .toast{
+    position:absolute;
+    top:-34px; right:0;
+    background: var(--ok);
+    color:#0e2016;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight:600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    opacity:0;
+    pointer-events:none;
+    transform: translateY(4px);
+    transition: all .18s ease;
+  }
+  .toast.show{ opacity:1; transform: translateY(0); }
+
+  /* 2FA */
+  .code-stage{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    padding: 10px 0 4px;
+  }
+  .code-stage.active{ display:flex; }
+  .ring-wrap{
+    position: relative;
+    width: 132px; height:132px;
+    margin-bottom: 20px;
+  }
+  .ring-wrap svg{ transform: rotate(-90deg); }
+  .ring-bg{ stroke: var(--line); fill:none; stroke-width:6; }
+  .ring-fg{
+    stroke: var(--accent);
+    fill:none;
+    stroke-width:6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .ring-center{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+  }
+  .ring-seconds{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight:700;
+    color: var(--accent);
+  }
+  .ring-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .code-display{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 40px;
+    font-weight:700;
+    letter-spacing: .12em;
+    cursor:pointer;
+    padding: 10px 22px;
+    border-radius: 12px;
+    border: 1px dashed var(--line);
+    background: var(--surface-2);
+    transition: border-color .15s ease;
+    position:relative;
+  }
+  .code-display:hover{ border-color: var(--accent-dim); }
+  .code-hint{
+    margin-top:10px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing:.05em;
+  }
+  .error-msg{
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--danger);
+    font-family:'JetBrains Mono', monospace;
+    display:none;
+  }
+  .error-msg.show{ display:block; }
+  .stop-btn{
+    margin-top: 16px;
+    background:transparent;
+    border:1px solid var(--line);
+    color: var(--muted);
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor:pointer;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .stop-btn:hover{ border-color: var(--danger); color: var(--danger); }
+
+  footer{
+    text-align:center;
+    margin-top: 22px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing:.03em;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hero">
+    <div class="eyebrow"><span class="dot"></span>RABIUL VAULT</div>
+    <h1>Password &amp; 2FA generator</h1>
+    <p>Everything runs in this browser tab. Nothing you type here is sent anywhere.</p>
+  </header>
+
+  <div class="tabs" data-active="pw" id="tabs">
+    <button class="tab active" data-tab="pw">PASSWORD</button>
+    <button class="tab" data-tab="2fa">2FA CODE</button>
+    <div class="tab-indicator"></div>
+  </div>
+
+  <!-- PASSWORD PANEL -->
+  <section class="panel active" id="panel-pw">
+    <div class="field">
+      <label for="prefix">Custom mark (prefix)</label>
+      <input type="text" id="prefix" value="RAB-" maxlength="20">
+    </div>
+
+    <div class="field">
+      <label>Length — <span class="len-value" id="lenValue">12</span> characters</label>
+      <input type="range" id="length" min="6" max="32" value="12">
+    </div>
+
+    <div class="toggles">
+      <label class="toggle checked"><input type="checkbox" data-opt="upper" checked><span class="check-box"></span>Uppercase A–Z</label>
+      <label class="toggle checked"><input type="checkbox" data-opt="lower" checked><span class="check-box"></span>Lowercase a–z</label>
+      <label class="toggle checked"><input type="checkbox" data-opt="number" checked><span class="check-box"></span>Numbers 0–9</label>
+      <label class="toggle"><input type="checkbox" data-opt="symbol"><span class="check-box"></span>Symbols !@#$</label>
+    </div>
+
+    <button class="primary" id="genPwBtn">Generate &amp; copy</button>
+
+    <div class="output" id="pwOutput">
+      <div class="toast" id="pwToast">COPIED</div>
+      <span class="output-text placeholder" id="pwText">Tap generate to create one</span>
+      <span class="copy-hint">TAP TO COPY</span>
+    </div>
+  </section>
+
+  <!-- 2FA PANEL -->
+  <section class="panel" id="panel-2fa">
+    <div class="field">
+      <label for="secret">2FA secret key</label>
+      <textarea id="secret" placeholder="Paste the Base32 secret key (e.g. JBSWY3DPEHPK3PXP)"></textarea>
+    </div>
+
+    <button class="primary" id="genTotpBtn">Generate &amp; copy</button>
+    <div class="error-msg" id="totpError">That doesn't look like a valid Base32 key. Check for typos or missing characters.</div>
+
+    <div class="code-stage" id="codeStage" style="margin-top:20px; padding-top:20px; border-top:1px solid var(--line);">
+      <div class="ring-wrap">
+        <svg width="132" height="132" viewBox="0 0 132 132">
+          <circle class="ring-bg" cx="66" cy="66" r="58"></circle>
+          <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="58"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-seconds" id="secondsLeft">30</div>
+          <div class="ring-label">seconds</div>
+        </div>
+      </div>
+
+      <div class="code-display" id="codeDisplay">
+        <div class="toast" id="totpToast">COPIED</div>
+        <span id="codeText">000000</span>
+      </div>
+      <div class="code-hint">TAP THE CODE TO COPY</div>
+      <button class="stop-btn" id="stopBtn">Stop generating</button>
+    </div>
+  </section>
+
+  <footer>Local only · no data leaves this page</footer>
+</div>
+
+<script>
+/* ---------- Tabs ---------- */
+const tabs = document.getElementById('tabs');
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.dataset.active = btn.dataset.tab;
+    document.getElementById('panel-pw').classList.toggle('active', btn.dataset.tab==='pw');
+    document.getElementById('panel-2fa').classList.toggle('active', btn.dataset.tab==='2fa');
+  });
+});
+
+/* ---------- Toggle chips ---------- */
+document.querySelectorAll('.toggle').forEach(label=>{
+  const box = label.querySelector('input');
+  label.addEventListener('click', (e)=>{
+    e.preventDefault();
+    box.checked = !box.checked;
+    label.classList.toggle('checked', box.checked);
+  });
+});
+
+/* ---------- Length slider ---------- */
+const lengthSlider = document.getElementById('length');
+const lenValue = document.getElementById('lenValue');
+lengthSlider.addEventListener('input', ()=> lenValue.textContent = lengthSlider.value);
+
+/* ---------- Password generation ---------- */
+const CHARSETS = {
+  upper: 'ABCDEFGHJKLMNPQRSTUVWXYZ',
+  lower: 'abcdefghijkmnpqrstuvwxyz',
+  number: '23456789',
+  symbol: '!@#$%^&*()-_=+?'
+};
+
+function secureRandomInt(max){
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return arr[0] % max;
+}
+
+function generatePassword(){
+  const opts = {};
+  document.querySelectorAll('[data-opt]').forEach(cb=> opts[cb.dataset.opt] = cb.checked);
+  const active = Object.keys(opts).filter(k=>opts[k]);
+  const pwText = document.getElementById('pwText');
+
+  if(active.length === 0){
+    pwText.textContent = 'Select at least one character type';
+    pwText.classList.add('placeholder');
+    return;
+  }
+
+  const pool = active.map(k=>CHARSETS[k]).join('');
+  const len = parseInt(lengthSlider.value, 10);
+  let chars = [];
+
+  // guarantee at least one of each selected type
+  active.forEach(k=>{
+    chars.push(CHARSETS[k][secureRandomInt(CHARSETS[k].length)]);
+  });
+  while(chars.length < len){
+    chars.push(pool[secureRandomInt(pool.length)]);
+  }
+  // shuffle
+  for(let i = chars.length - 1; i > 0; i--){
+    const j = secureRandomInt(i+1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  chars = chars.slice(0, len);
+
+  const prefix = document.getElementById('prefix').value || '';
+  const finalPw = prefix + chars.join('');
+
+  pwText.textContent = finalPw;
+  pwText.classList.remove('placeholder');
+}
+
+document.getElementById('genPwBtn').addEventListener('click', ()=>{
+  generatePassword();
+  const text = document.getElementById('pwText').textContent;
+  if(text && !document.getElementById('pwText').classList.contains('placeholder')){
+    copyToClipboard(text, document.getElementById('pwToast'));
+  }
+});
+
+document.getElementById('pwOutput').addEventListener('click', ()=>{
+  const text = document.getElementById('pwText').textContent;
+  if(!text || document.getElementById('pwText').classList.contains('placeholder')) return;
+  copyToClipboard(text, document.getElementById('pwToast'));
+});
+
+function showToast(toastEl){
+  toastEl.classList.add('show');
+  setTimeout(()=> toastEl.classList.remove('show'), 1200);
+}
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  ta.style.left = '-1000px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try{
+    ok = document.execCommand('copy');
+  }catch(e){
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function copyToClipboard(text, toastEl){
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text)
+      .then(()=> showToast(toastEl))
+      .catch(()=>{
+        if(fallbackCopy(text)) showToast(toastEl);
+      });
+  }else{
+    if(fallbackCopy(text)) showToast(toastEl);
+  }
+}
+
+/* ---------- TOTP (RFC 6238) ---------- */
+function base32Decode(input){
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const clean = input.replace(/\s+/g,'').replace(/=+$/,'').toUpperCase();
+  let bits = '';
+  for(const ch of clean){
+    const idx = alphabet.indexOf(ch);
+    if(idx === -1) throw new Error('invalid base32 character');
+    bits += idx.toString(2).padStart(5,'0');
+  }
+  const bytes = [];
+  for(let i = 0; i + 8 <= bits.length; i += 8){
+    bytes.push(parseInt(bits.substring(i, i+8), 2));
+  }
+  return new Uint8Array(bytes);
+}
+
+async function hmacSha1(keyBytes, msgBytes){
+  const key = await crypto.subtle.importKey(
+    'raw', keyBytes, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, msgBytes);
+  return new Uint8Array(sig);
+}
+
+function intToBytes(num){
+  const buf = new ArrayBuffer(8);
+  const view = new DataView(buf);
+  // JS numbers are safe up to 2^53; time step counter fits easily
+  view.setUint32(4, num >>> 0);
+  view.setUint32(0, Math.floor(num / 0x100000000));
+  return new Uint8Array(buf);
+}
+
+async function generateTOTP(secretBase32, step = 30, digits = 6){
+  const keyBytes = base32Decode(secretBase32);
+  const counter = Math.floor(Date.now() / 1000 / step);
+  const msgBytes = intToBytes(counter);
+  const hmac = await hmacSha1(keyBytes, msgBytes);
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binCode = ((hmac[offset] & 0x7f) << 24) |
+                   ((hmac[offset+1] & 0xff) << 16) |
+                   ((hmac[offset+2] & 0xff) << 8) |
+                   (hmac[offset+3] & 0xff);
+  const code = (binCode % (10 ** digits)).toString().padStart(digits, '0');
+  return code;
+}
+
+let totpTimer = null;
+let currentSecret = null;
+const RING_R = 58;
+const RING_CIRC = 2 * Math.PI * RING_R;
+const ringFg = document.getElementById('ringFg');
+ringFg.style.strokeDasharray = RING_CIRC;
+
+async function refreshCode(){
+  if(!currentSecret) return;
+  try{
+    const code = await generateTOTP(currentSecret);
+    document.getElementById('codeText').textContent = code;
+  }catch(e){
+    stopTotp();
+    showTotpError();
+  }
+}
+
+function tickRing(){
+  const step = 30;
+  const now = Date.now() / 1000;
+  const elapsed = now % step;
+  const remaining = Math.ceil(step - elapsed);
+  document.getElementById('secondsLeft').textContent = remaining;
+  const fraction = (step - elapsed) / step;
+  ringFg.style.strokeDashoffset = RING_CIRC * (1 - fraction);
+  if(remaining === 30 || remaining === 0){
+    refreshCode();
+  }
+}
+
+function showTotpError(){
+  document.getElementById('totpError').classList.add('show');
+}
+function hideTotpError(){
+  document.getElementById('totpError').classList.remove('show');
+}
+
+document.getElementById('genTotpBtn').addEventListener('click', async ()=>{
+  const raw = document.getElementById('secret').value.trim();
+  hideTotpError();
+  if(!raw){ showTotpError(); return; }
+  try{
+    currentSecret = raw;
+    const code = await generateTOTP(currentSecret);
+    document.getElementById('codeText').textContent = code;
+    document.getElementById('codeStage').classList.add('active');
+    tickRing();
+    if(totpTimer) clearInterval(totpTimer);
+    totpTimer = setInterval(tickRing, 1000);
+    copyToClipboard(code, document.getElementById('totpToast'));
+  }catch(e){
+    currentSecret = null;
+    showTotpError();
+    document.getElementById('codeStage').classList.remove('active');
+    clearInterval(totpTimer);
+    totpTimer = null;
+  }
+});
+
+function stopTotp(){
+  clearInterval(totpTimer);
+  totpTimer = null;
+  currentSecret = null;
+  document.getElementById('codeStage').classList.remove('active');
+}
+
+document.getElementById('stopBtn').addEventListener('click', stopTotp);
+
+document.getElementById('codeDisplay').addEventListener('click', ()=>{
+  const code = document.getElementById('codeText').textContent;
+  copyToClipboard(code, document.getElementById('totpToast'));
+});
+
+/* generate an initial password on load for a nice first impression */
+generatePassword();
+</script>
+</body>
+</html>
