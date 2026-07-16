@@ -367,6 +367,31 @@
   }
   .stop-btn:hover{ border-color: var(--danger); color: var(--danger); }
 
+  /* Secondary Action Buttons */
+  .action-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  button.secondary-btn {
+    flex: 1;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  button.secondary-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--surface);
+  }
+
   footer{
     text-align:center;
     margin-top: 22px;
@@ -425,6 +450,11 @@
     <div class="field">
       <label for="secret">2FA secret key</label>
       <textarea id="secret" placeholder="Paste the Base32 secret key (e.g. JBSWY3DPEHPK3PXP)"></textarea>
+      
+      <div class="action-row">
+        <button class="secondary-btn" id="pasteBtn">Paste & Replace</button>
+        <button class="secondary-btn" id="copySecretBtn">Copy Secret</button>
+      </div>
     </div>
 
     <button class="primary" id="genTotpBtn">Generate &amp; copy</button>
@@ -611,7 +641,6 @@ async function hmacSha1(keyBytes, msgBytes){
 function intToBytes(num){
   const buf = new ArrayBuffer(8);
   const view = new DataView(buf);
-  // JS numbers are safe up to 2^53; time step counter fits easily
   view.setUint32(4, num >>> 0);
   view.setUint32(0, Math.floor(num / 0x100000000));
   return new Uint8Array(buf);
@@ -703,6 +732,51 @@ document.getElementById('stopBtn').addEventListener('click', stopTotp);
 document.getElementById('codeDisplay').addEventListener('click', ()=>{
   const code = document.getElementById('codeText').textContent;
   copyToClipboard(code, document.getElementById('totpToast'));
+});
+
+/* ---------- 2FA Secret Utility Buttons ---------- */
+const pasteBtn = document.getElementById('pasteBtn');
+const copySecretBtn = document.getElementById('copySecretBtn');
+const secretInput = document.getElementById('secret');
+
+pasteBtn.addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    secretInput.value = text;
+    
+    const originalText = pasteBtn.textContent;
+    pasteBtn.textContent = 'Pasted!';
+    pasteBtn.style.color = 'var(--ok)';
+    pasteBtn.style.borderColor = 'var(--ok)';
+    setTimeout(() => {
+      pasteBtn.textContent = originalText;
+      pasteBtn.style.color = '';
+      pasteBtn.style.borderColor = '';
+    }, 1200);
+  } catch (err) {
+    alert('Clipboard access denied. Please grant permission or paste manually.');
+  }
+});
+
+copySecretBtn.addEventListener('click', () => {
+  const textToCopy = secretInput.value;
+  if (!textToCopy) return;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(textToCopy);
+  } else {
+    fallbackCopy(textToCopy);
+  }
+  
+  const originalText = copySecretBtn.textContent;
+  copySecretBtn.textContent = 'Copied!';
+  copySecretBtn.style.color = 'var(--ok)';
+  copySecretBtn.style.borderColor = 'var(--ok)';
+  setTimeout(() => {
+    copySecretBtn.textContent = originalText;
+    copySecretBtn.style.color = '';
+    copySecretBtn.style.borderColor = '';
+  }, 1200);
 });
 
 /* generate an initial password on load for a nice first impression */
